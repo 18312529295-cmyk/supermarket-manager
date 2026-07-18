@@ -97,3 +97,4 @@ PODEOF
           name: xiaomi-ios-ipa
           path: build/ios/ipa/*.zip
           retention-days: 30
+
