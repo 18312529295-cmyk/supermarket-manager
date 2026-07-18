@@ -1,0 +1,22 @@
+{
+  "@@locale": "vi",
+  "@@note": "Vietnamese placeholder — most strings fall back to Chinese. Todo: translate.",
+  "appTitle": "Quản Lý Siêu Thị",
+  "inventory": "Kho hàng",
+  "stockIn": "Nhập kho",
+  "stockOut": "Xuất kho",
+  "check": "Kiểm kê",
+  "report": "Báo cáo",
+  "more": "Thêm",
+  "scanBarcode": "Quét mã vạch",
+  "barcode": "Mã vạch",
+  "productName": "Tên sản phẩm",
+  "category": "Danh mục",
+  "quantity": "Số lượng",
+  "price": "Giá",
+  "login": "Đăng nhập",
+  "logout": "Đăng xuất",
+  "settings": "Cài đặt",
+  "language": "Ngôn ngữ",
+  "userManagement": "Quản lý nhân sự"
+}

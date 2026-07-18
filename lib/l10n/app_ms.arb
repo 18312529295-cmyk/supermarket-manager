@@ -1,0 +1,22 @@
+{
+  "@@locale": "ms",
+  "@@note": "Malay placeholder — most strings fall back to Chinese. Todo: translate.",
+  "appTitle": "Pengurus Pasar Raya",
+  "inventory": "Inventori",
+  "stockIn": "Stok Masuk",
+  "stockOut": "Stok Keluar",
+  "check": "Semakan",
+  "report": "Laporan",
+  "more": "Lagi",
+  "scanBarcode": "Imbas Kod Bar",
+  "barcode": "Kod Bar",
+  "productName": "Nama Produk",
+  "category": "Kategori",
+  "quantity": "Kuantiti",
+  "price": "Harga",
+  "login": "Log Masuk",
+  "logout": "Log Keluar",
+  "settings": "Tetapan",
+  "language": "Bahasa",
+  "userManagement": "Pengurusan Kakitangan"
+}

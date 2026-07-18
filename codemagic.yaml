@@ -1,0 +1,189 @@
+# 🚀 Codemagic CI/CD 配置 — 无需 Mac 即可构建 iOS 安装包
+# 将此文件放在项目根目录，推送到 GitHub 并关联 Codemagic 即可自动构建
+# 注册地址：https://codemagic.io/signup (免费 500 分钟/月，够用)
+
+workflows:
+  ios-build:
+    name: 虾觅 iOS 构建 (生产版)
+    instance_type: mac_mini_m2  # 云端 Mac 环境
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      # ⚠️ 在 Codemagic UI 中配置以下环境变量：
+      # APP_STORE_CONNECT_ISSUER_ID  - App Store Connect 发行人 ID
+      # APP_STORE_CONNECT_KEY_ID     - App Store Connect API 密钥 ID
+      # APP_STORE_CONNECT_PRIVATE_KEY - App Store Connect API 私钥内容
+      # CERTIFICATE_PRIVATE_KEY      - 分发证书私钥
+    vars:
+      APP_ID: io.supermarket.manager      # ✅ 改成你的 Bundle ID
+      APP_NAME: 虾觅
+      BUILD_MODE: release
+    scripts:
+      # 1️⃣ 生成 iOS 项目骨架（如果没有 ios/ 目录）
+      - name: 生成 iOS 项目文件
+        script: |
+          if [ ! -d "ios" ]; then
+            flutter create --project-name supermarket_manager --platforms=ios .
+            echo "✅ iOS 项目骨架已生成"
+          else
+            echo "✅ ios/ 目录已存在，跳过生成"
+          fi
+
+      # 2️⃣ 写入自定义 Info.plist（相机权限等）
+      - name: 配置 iOS Info.plist (权限)
+        script: |
+          cat > ios/Runner/Info.plist << 'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>虾觅</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>虾觅</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<false/>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>扫描商品条码需要访问您的相机</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>用于保存商品图片和导出报告</string>
+</dict>
+</plist>
+PLIST
+          echo "✅ Info.plist 已配置"
+
+      # 3️⃣ 写入 Podfile（iOS 依赖配置）
+      - name: 配置 Podfile
+        script: |
+          cat > ios/Podfile << 'PODFILE'
+# Uncomment this line to define a global platform for your project
+platform :ios, '15.0'
+
+# CocoaPods analytics sends network stats synchronously affecting flutter build latency.
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+def flutter_root
+  generated_xcode_build_settings_path = File.expand_path(
+    File.join('..', 'Flutter', 'ephemeral', 'Flutter-Generated.xcconfig'),
+    __FILE__
+  )
+  unless File.exist?(generated_xcode_build_settings_path)
+    generated_xcode_build_settings_path = File.expand_path(
+      File.join('..', 'Flutter', 'Generated.xcconfig'),
+      __FILE__
+    )
+  end
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist. " \
+          'If you are running pod install manually, make sure ' \
+          '"flutter pub get" is executed first'
+  end
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/FLUTTER_ROOT\=(.*)/)
+    return matches[1].strip if matches
+  end
+  raise 'FLUTTER_ROOT not found in Generated.xcconfig'
+end
+
+require File.expand_path(
+  File.join('packages', 'flutter_tools', 'bin', 'podhelper'),
+  flutter_root
+)
+
+flutter_ios_podfile_setup
+
+target 'Runner' do
+  use_frameworks!
+  use_modular_headers!
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+    # 修复某些插件的 iOS 部署目标版本不兼容
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+    end
+  end
+end
+PODFILE
+          echo "✅ Podfile 已配置"
+
+      # 4️⃣ 修复 dependency_overrides（Android 专用，构建 iOS 时跳过）
+      - name: 临时移除 Android 专有依赖覆盖
+        script: |
+          # 使用 sed 注释掉 path_provider_android 的 override（它只对 Android 有效）
+          sed -i '' 's/dependency_overrides:/# iOS 构建跳过 Android 依赖覆盖\ndependency_overrides:/' pubspec.yaml
+          sed -i '' 's/  path_provider_android: 2.2.17/  # path_provider_android: 2.2.17 (iOS 不需要)/' pubspec.yaml
+          echo "✅ 已处理 Android 专有依赖"
+
+      # 5️⃣ 执行 Flutter pub get
+      - name: 获取 Flutter 依赖
+        script: |
+          flutter pub get
+
+      # 6️⃣ 构建 iOS release 模式
+      - name: 构建 iOS 安装包
+        script: |
+          flutter build ios --release --no-codesign
+          echo "✅ iOS 构建完成"
+
+      # 7️⃣ 打包为 IPA（无签名）
+      - name: 打包 IPA
+        script: |
+          mkdir -p build/ios/ipa
+          cd build/ios/iphoneos
+          mkdir -p Payload
+          mv Runner.app Payload/
+          zip -r ../../ipa/xiaomi_unsigned_v6.30.ipa Payload/
+          echo "✅ IPA 打包完成: build/ios/ipa/xiaomi_unsigned_v6.30.ipa"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - build/ios/iphoneos/Runner.app
+      - flutter_drive.log
+
+    publishing:
+      email:
+        recipients:
+          - your-email@example.com  # ✅ 改成你的邮箱
+        notify:
+          success: true
+          failure: true

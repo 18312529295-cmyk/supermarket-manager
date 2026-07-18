@@ -1,0 +1,209 @@
+# 🍎 虾觅 iOS 云端构建 (备选方案)
+# 无需 Mac，使用 GitHub 免费 macOS Runner 构建 iOS 安装包
+# 
+# 用法：
+# 1. 将此文件放入 .github/workflows/
+# 2. 推送到 GitHub
+# 3. 在 Actions 页面手动触发或 push 时自动触发
+#
+# ⚠️ 构建产物是无签名的 IPA，需要用 SideStore/AltStore 侧载安装
+
+name: 虾觅 iOS 构建
+
+on:
+  push:
+    branches: [main, master, develop]
+    paths:
+      - 'lib/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+  workflow_dispatch:  # 手动触发
+    inputs:
+      build_mode:
+        description: '构建模式'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+          - release
+          - debug
+
+jobs:
+  build-ios:
+    name: 构建 iOS (${{ github.event.inputs.build_mode || 'release' }})
+    runs-on: macos-latest  # GitHub 免费提供的 macOS 环境
+    timeout-minutes: 45
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 'stable'
+          cache: true
+
+      - name: 设置 Ruby (CocoaPods)
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.1'
+          bundler-cache: true
+
+      - name: 检查是否有 ios/ 目录
+        id: check_ios
+        run: |
+          if [ -d "ios" ]; then
+            echo "has_ios=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_ios=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 生成 iOS 项目骨架
+        if: steps.check_ios.outputs.has_ios == 'false'
+        run: |
+          flutter create --project-name supermarket_manager --platforms=ios .
+          echo "✅ iOS 项目骨架已生成"
+
+      - name: 写入 Info.plist（相机权限）
+        run: |
+          cat > ios/Runner/Info.plist << 'PLISTEOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>虾觅</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>虾觅</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<false/>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>扫描商品条码需要访问您的相机</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>用于保存商品图片和导出报告</string>
+</dict>
+</plist>
+PLISTEOF
+          echo "✅ Info.plist 已配置"
+
+      - name: 写入 Podfile
+        run: |
+          cat > ios/Podfile << 'PODEOF'
+platform :ios, '15.0'
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+def flutter_root
+  generated_xcode_build_settings_path = File.expand_path(
+    File.join('..', 'Flutter', 'ephemeral', 'Flutter-Generated.xcconfig'),
+    __FILE__
+  )
+  unless File.exist?(generated_xcode_build_settings_path)
+    generated_xcode_build_settings_path = File.expand_path(
+      File.join('..', 'Flutter', 'Generated.xcconfig'),
+      __FILE__
+    )
+  end
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist."
+  end
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/FLUTTER_ROOT\=(.*)/)
+    return matches[1].strip if matches
+  end
+  raise 'FLUTTER_ROOT not found'
+end
+
+require File.expand_path(
+  File.join('packages', 'flutter_tools', 'bin', 'podhelper'),
+  flutter_root
+)
+
+flutter_ios_podfile_setup
+
+target 'Runner' do
+  use_frameworks!
+  use_modular_headers!
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+    end
+  end
+end
+PODEOF
+          echo "✅ Podfile 已配置"
+
+      - name: 获取依赖
+        run: |
+          flutter pub get
+          cd ios && pod install && cd ..
+
+      - name: 构建 iOS
+        run: |
+          BUILD_MODE="${{ github.event.inputs.build_mode || 'release' }}"
+          flutter build ios --${BUILD_MODE} --no-codesign
+          echo "✅ iOS 构建完成 (${BUILD_MODE})"
+
+      - name: 打包 IPA
+        run: |
+          mkdir -p build/ios/ipa
+          cd build/ios/iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/
+          zip -r ../ipa/xiaomi_unsigned_${{ github.sha }}.ipa Payload/
+          echo "✅ IPA 打包完成"
+
+      - name: 上传 IPA 产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: xiaomi-ios-ipa
+          path: build/ios/ipa/*.ipa
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: 上传 .app 产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: xiaomi-ios-app
+          path: build/ios/iphoneos/Runner.app
+          retention-days: 7
+          if-no-files-found: warn

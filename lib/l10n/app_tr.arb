@@ -1,0 +1,22 @@
+{
+  "@@locale": "tr",
+  "@@note": "Turkish placeholder — most strings fall back to Chinese. Todo: translate.",
+  "appTitle": "Süpermarket Yöneticisi",
+  "inventory": "Envanter",
+  "stockIn": "Giriş",
+  "stockOut": "Çıkış",
+  "check": "Kontrol",
+  "report": "Raporlar",
+  "more": "Daha Fazla",
+  "scanBarcode": "Barkod Tara",
+  "barcode": "Barkod",
+  "productName": "Ürün Adı",
+  "category": "Kategori",
+  "quantity": "Miktar",
+  "price": "Fiyat",
+  "login": "Giriş Yap",
+  "logout": "Çıkış Yap",
+  "settings": "Ayarlar",
+  "language": "Dil",
+  "userManagement": "Personel Yönetimi"
+}
