@@ -1,16 +1,17 @@
 name: 虾觅 iOS 构建
-on: [push, workflow_dispatch]
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
   build-ios:
-    name: Build iOS
     runs-on: macos-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
@@ -23,50 +24,78 @@ jobs:
 
       - name: Plist
         run: |
-          cat > ios/Runner/Info.plist << 'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0"><dict>
-          <key>CFBundleDisplayName</key><string>虾觅</string>
-          <key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-          <key>CFBundleName</key><string>虾觅</string>
-          <key>CFBundlePackageType</key><string>APPL</string>
-          <key>CFBundleShortVersionString</key><string>$(FLUTTER_BUILD_NAME)</string>
-          <key>CFBundleVersion</key><string>$(FLUTTER_BUILD_NUMBER)</string>
-          <key>LSRequiresIPhoneOS</key><true/>
-          <key>UILaunchStoryboardName</key><string>LaunchScreen</string>
-          <key>UIMainStoryboardFile</key><string>Main</string>
-          <key>UISupportedInterfaceOrientations</key>
-          <array><string>UIInterfaceOrientationPortrait</string></array>
-          <key>NSCameraUsageDescription</key><string>barcode scanning</string>
-          </dict></plist>
-          EOF
+          cat > ios/Runner/Info.plist << 'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleDisplayName</key><string>虾觅</string>
+<key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+<key>CFBundleName</key><string>虾觅</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>CFBundleShortVersionString</key><string>$(FLUTTER_BUILD_NAME)</string>
+<key>CFBundleVersion</key><string>$(FLUTTER_BUILD_NUMBER)</string>
+<key>LSRequiresIPhoneOS</key><true/>
+<key>UILaunchStoryboardName</key><string>LaunchScreen</string>
+<key>UIMainStoryboardFile</key><string>Main</string>
+<key>UISupportedInterfaceOrientations</key>
+<array><string>UIInterfaceOrientationPortrait</string></array>
+<key>NSCameraUsageDescription</key><string>barcode scanning</string>
+</dict></plist>
+PLIST
 
       - name: Podfile
         run: |
-          cat > ios/Podfile << 'POD'
-          platform :ios, '15.0'
-          ENV['COCOAPODS_DISABLE_STATS'] = 'true'
-          target 'Runner' do
-            use_frameworks!
-            use_modular_headers!
-            flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
-          end
-          post_install do |i|
-            i.pods_project.targets.each do |t|
-              flutter_additional_ios_build_settings(t)
-              t.build_configurations.each { |c| c.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0' }
-            end
-          end
-          POD
-
-      - name: Dependencies
-        run: |
           flutter pub get
-          cd ios && pod install && cd ..
+          cd ios && pod init && cd ..
+          cat > ios/Podfile << 'POD'
+# Uncomment this line to define a global platform for your project
+platform :ios, '15.0'
+
+# CocoaPods analytics sends network stats synchronously affecting flutter build latency.
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+def flutter_root
+  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'ephemeral', 'Flutter-Generated.xcconfig'), __FILE__)
+  unless File.exist?(generated_xcode_build_settings_path)
+    generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+  end
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist. If you are running pod install manually, make sure \"flutter pub get\" is executed first"
+  end
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/FLUTTER_ROOT\=(.*)/)
+    return matches[1].strip if matches
+  end
+  raise "FLUTTER_ROOT not found in Generated.xcconfig"
+end
+
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+
+flutter_ios_podfile_setup
+
+target 'Runner' do
+  use_frameworks!
+  use_modular_headers!
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+  end
+end
+POD
 
       - name: Build
-        run: flutter build ios --release --no-codesign
+        run: |
+          cd ios && pod install && cd ..
+          flutter build ios --release --no-codesign
 
       - name: Package
         run: |
