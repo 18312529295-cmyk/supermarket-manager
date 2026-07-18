@@ -1,5 +1,5 @@
 name: 虾觅 iOS 构建
-on: [push]
+on: [push, workflow_dispatch]
 
 jobs:
   build-ios:
