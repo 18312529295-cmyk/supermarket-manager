@@ -45,9 +45,9 @@ android {
 
     signingConfigs {
         release {
-            storeFile file("release-key.jks")
+            storeFile file("debug-key.jks")
             storePassword "123456"
-            keyAlias "release"
+            keyAlias "debug"
             keyPassword "123456"
         }
     }
