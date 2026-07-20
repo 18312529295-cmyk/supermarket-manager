@@ -226,21 +226,21 @@ class _ListingScreenState extends State<ListingScreen> {
     double effectiveCost = costCny;
     if (confirmed == 'weighted') {
       final newQty = int.tryParse(newQtyController.text) ?? 0;
-      final newCost = double.tryParse(newCostController.text) ?? 0;
+      final newCost = double.tryParse(newCostLocalController.text) ?? 0;
       if (newQty > 0 && newCost > 0 && currentStock > 0) {
-        effectiveCost = (currentStock * costCny + newQty * newCost) / (currentStock + newQty);
+        effectiveCost = (currentStock * costCny + newQty * (newCost / rate)) / (currentStock + newQty);
       }
     }
 
     final provider = context.read<InventoryProvider>();
-    await provider.updateProductPrices(product.id!, sellCny, sellLocal, costPriceCny: effectiveCost);
+    await provider.updateProductPrices(product.id!, sellCny.toDouble(), sellLocal, costPriceCny: effectiveCost);
     // 同步价格 + 分类到云端
     SupabaseSyncService().syncProductPrice(product.barcode, effectiveCost, sellLocal,
-        sellPriceCny: sellCny, categoryName: product.category).catchError((_) {});
+        sellPriceCny: sellCny.toDouble(), categoryName: product.category).catchError((_) {});
     _refresh();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${product.nameCn} 价格已设置: 进价¥${effectiveCost.toStringAsFixed(2)} / 售价¥$sellCny'),
+        content: Text('${product.nameCn} 价格已设置: 进价¥${effectiveCost.toStringAsFixed(2)} / 售价¥${sellCny.toStringAsFixed(2)}'),
         backgroundColor: Colors.green,
         duration: const Duration(seconds: 2),
       ),
