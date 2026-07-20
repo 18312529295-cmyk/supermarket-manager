@@ -481,7 +481,7 @@ class DatabaseService {
       } catch (e) {}
     }
     if (oldVersion < 17) {
-      // ★ v6.33: v16 → v17 — Orders表 + order_id字段
+      // ★ v6.33: v16 → v17 — Orders表 + order_id字段 + 重新导入预设商品
       try {
         await db.execute('''
           CREATE TABLE IF NOT EXISTS orders (
@@ -499,6 +499,28 @@ class DatabaseService {
       try {
         await db.execute('ALTER TABLE stock_records ADD COLUMN order_id INTEGER');
       } catch (e) {}
+      // ★ v6.33: 重新导入预设商品（补充新增加的商品条码）
+      // 使用 INSERT OR IGNORE 避免重复插入已有条码
+      try {
+        final jsonString = await rootBundle.loadString('assets/preset_products.json');
+        final List<dynamic> items = jsonDecode(jsonString);
+        final now = DateTime.now().toIso8601String();
+        // 先检查预设商品总数，再逐条插入
+        int added = 0;
+        for (final item in items) {
+          final barcode = item['barcode']?.toString() ?? '';
+          final name = item['name_cn']?.toString() ?? '';
+          if (barcode.isEmpty || name.isEmpty) continue;
+          try {
+            await db.rawInsert('''
+              INSERT OR IGNORE INTO products (barcode, name_cn, category, supplier, unit, price_cny, price_uzs, created_at, updated_at)
+              VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?)
+            ''', [barcode, name, item['category']?.toString() ?? '其他', item['brand']?.toString(), '瓶/包', now, now]);
+            added++;
+          } catch (_) {}
+        }
+        if (added > 0) print('v6.33: 新增了 $added 个预设商品');
+      } catch (_) {} // 静默失败
     }
   }
 
