@@ -21,43 +21,44 @@ class CurrencyDisplay extends StatelessWidget {
   Widget build(BuildContext context) {
     final appProvider = context.watch<AppProvider>();
     final display = appProvider.currencyDisplay;
-    final uzsSymbol = appProvider.countryConfig.currencySymbol;
+    final localSymbol = appProvider.countryConfig.currencySymbol;
 
     if (compact) {
-      return _buildCompact(display, uzsSymbol);
+      return _buildCompact(display, localSymbol);
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (display == 'both' || display == 'cny')
-          Text(
-            CurrencyUtil.formatCny(amountCny),
-            style: style ?? const TextStyle(fontSize: 14),
-          ),
+        // ★ v6.34: 当地货币在前
         if (display == 'both' || display == 'uzs')
           Text(
-            CurrencyUtil.formatUzs(amountUzs, symbol: uzsSymbol),
+            CurrencyUtil.formatUzs(amountUzs, symbol: localSymbol),
             style: style ??
                 const TextStyle(
                   fontSize: 14,
-                  color: Colors.orange,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
                 ),
+          ),
+        if (display == 'both' || display == 'cny')
+          Text(
+            CurrencyUtil.formatCny(amountCny),
+            style: style ?? const TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w400),
           ),
       ],
     );
   }
 
-  Widget _buildCompact(String display, String uzsSymbol) {
+  Widget _buildCompact(String display, String localSymbol) {
     String text = '';
     if (display == 'both') {
-      text = '${CurrencyUtil.formatCompact(amountCny, 'CNY', uzsSymbol: uzsSymbol)} / ${CurrencyUtil.formatCompact(amountUzs, 'UZS', uzsSymbol: uzsSymbol)}';
-    } else if (display == 'cny') {
-      text = CurrencyUtil.formatCompact(amountCny, 'CNY', uzsSymbol: uzsSymbol);
+      // ★ v6.34: 当地货币在前
+      text = '${CurrencyUtil.formatCompact(amountUzs, 'UZS', uzsSymbol: localSymbol)} / ${CurrencyUtil.formatCompact(amountCny, 'CNY')}';
+    } else if (display == 'uzs') {
+      text = CurrencyUtil.formatCompact(amountUzs, 'UZS', uzsSymbol: localSymbol);
     } else {
-      text = CurrencyUtil.formatCompact(amountUzs, 'UZS', uzsSymbol: uzsSymbol);
+      text = CurrencyUtil.formatCompact(amountCny, 'CNY', uzsSymbol: localSymbol);
     }
 
     return Text(

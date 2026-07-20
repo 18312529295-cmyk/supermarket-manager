@@ -104,9 +104,12 @@ class _SalesTrendTabState extends State<_SalesTrendTab>
 
   List<Map<String, dynamic>> _trendData = [];
   double _totalSales = 0;
+  double _totalSalesUzs = 0;     // ★ v6.34: 当地货币总额
   int _totalQuantity = 0;
   double _avgDailySales = 0;
+  double _avgDailySalesUzs = 0;  // ★ v6.34
   double _totalProfit = 0;
+  double _totalProfitUzs = 0;    // ★ v6.34
 
   @override
   void initState() {
@@ -152,9 +155,12 @@ class _SalesTrendTabState extends State<_SalesTrendTab>
         setState(() {
           _trendData = data;
           _totalSales = total;
+          _totalSalesUzs = data.fold<double>(0, (s, item) => s + ((item['total_amount_uzs'] as num?)?.toDouble() ?? 0));
           _totalQuantity = qty;
           _totalProfit = profit;
+          _totalProfitUzs = data.fold<double>(0, (s, item) => s + ((item['profit_cny'] as num?)?.toDouble() ?? 0) * exchangeRate);
           _avgDailySales = data.isNotEmpty ? total / data.length : 0;
+          _avgDailySalesUzs = data.isNotEmpty ? _totalSalesUzs / data.length : 0;
           _isLoading = false;
         });
       }
@@ -425,9 +431,9 @@ class _SalesTrendTabState extends State<_SalesTrendTab>
   }
 
   Widget _buildSummaryCards(CountryConfig countryConfig, bool isManager) {
-    final totalUzs = _totalSales * countryConfig.cnyExchangeRate;
-    final avgUzs = _avgDailySales * countryConfig.cnyExchangeRate;
-    final profitUzs = _totalProfit * countryConfig.cnyExchangeRate;
+    final totalCny = _totalSales * countryConfig.cnyExchangeRate > 0 ? _totalSales : 0;
+    final avgCny = _avgDailySales * countryConfig.cnyExchangeRate > 0 ? _avgDailySales : 0;
+    final profitCny = _totalProfit * countryConfig.cnyExchangeRate > 0 ? _totalProfit : 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -446,10 +452,10 @@ class _SalesTrendTabState extends State<_SalesTrendTab>
             Expanded(
               child: _buildSummaryCard(
                 '总销售额',
-                '¥${_totalSales.toStringAsFixed(2)}',
+                '${_totalSalesUzs.toStringAsFixed(0)} ${countryConfig.currencySymbol}',
                 Icons.monetization_on_outlined,
                 Colors.blue,
-                subtitle: '≈ ${totalUzs.toStringAsFixed(0)} ${countryConfig.currencySymbol}',
+                subtitle: '≈ ¥${_totalSales.toStringAsFixed(2)}',
               ),
             ),
             const SizedBox(width: 12),
@@ -466,21 +472,21 @@ class _SalesTrendTabState extends State<_SalesTrendTab>
         const SizedBox(height: 12),
         _buildSummaryCard(
           '平均日销售额',
-          '¥${_avgDailySales.toStringAsFixed(2)}',
+          '${_avgDailySalesUzs.toStringAsFixed(0)} ${countryConfig.currencySymbol}',
           Icons.trending_up,
           Colors.orange,
           fullWidth: true,
-          subtitle: '≈ ${avgUzs.toStringAsFixed(0)} ${countryConfig.currencySymbol}',
+          subtitle: '≈ ¥${_avgDailySales.toStringAsFixed(2)}',
         ),
         if (isManager) ...[
           const SizedBox(height: 12),
           _buildSummaryCard(
             '盈利',
-            '¥${_totalProfit.toStringAsFixed(2)}',
+            '${_totalProfitUzs.toStringAsFixed(0)} ${countryConfig.currencySymbol}',
             Icons.account_balance_wallet_outlined,
             Colors.purple,
             fullWidth: true,
-            subtitle: '≈ ${profitUzs.toStringAsFixed(0)} ${countryConfig.currencySymbol}',
+            subtitle: '≈ ¥${_totalProfit.toStringAsFixed(2)}',
           ),
         ],
       ],

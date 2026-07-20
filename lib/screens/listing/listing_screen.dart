@@ -43,19 +43,19 @@ class _ListingScreenState extends State<ListingScreen> {
   CountryConfig get _countryConfig => context.read<AppProvider>().countryConfig;
 
   /// 人民币 → 当地货币转换
-  String _cnyToLocal(double cny) {
+  String _localToCny(double local) {
     final rate = _countryConfig.cnyExchangeRate;
-    final local = cny * rate;
-    if (rate >= 100) return '${local.toStringAsFixed(0)} ${_countryConfig.currencySymbol}';
-    return '${local.toStringAsFixed(2)} ${_countryConfig.currencySymbol}';
+    final cny = local / rate;
+    if (rate >= 100) return '¥${cny.toStringAsFixed(2)}';
+    return '¥${cny.toStringAsFixed(2)}';
   }
 
   /// ★ v6.32: 价格设置弹窗 — 进价+售价双币种 + 加权均价
   Future<void> _showPriceDialog(Product product) async {
-    final costCnyController = TextEditingController(text: product.costPriceCny > 0 ? product.costPriceCny.toStringAsFixed(2) : '');
-    final sellCnyController = TextEditingController(text: product.priceCny > 0 ? product.priceCny.toStringAsFixed(2) : '');
+    final costLocalController = TextEditingController(text: product.costPriceCny > 0 ? (product.costPriceCny * _countryConfig.cnyExchangeRate).toStringAsFixed(0) : '');
+    final sellLocalController = TextEditingController(text: product.priceCny > 0 ? (product.priceCny * _countryConfig.cnyExchangeRate).toStringAsFixed(0) : '');
     final newQtyController = TextEditingController();
-    final newCostController = TextEditingController();
+    final newCostLocalController = TextEditingController();
     final formKey = GlobalKey<FormState>();
     final symbol = _countryConfig.currencySymbol;
 
@@ -70,12 +70,16 @@ class _ListingScreenState extends State<ListingScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
-          double costCny = double.tryParse(costCnyController.text) ?? 0;
-          double sellCny = double.tryParse(sellCnyController.text) ?? 0;
+          double costLocal = double.tryParse(costLocalController.text) ?? 0;
+          double sellLocal = double.tryParse(sellLocalController.text) ?? 0;
           final newQty = int.tryParse(newQtyController.text) ?? 0;
-          final newCost = double.tryParse(newCostController.text) ?? 0;
-          final weighted = (newQty > 0 && newCost > 0 && currentStock > 0)
-              ? ((currentStock * costCny + newQty * newCost) / (currentStock + newQty))
+          final newCostLocal = double.tryParse(newCostLocalController.text) ?? 0;
+          final rate = _countryConfig.cnyExchangeRate;
+          final costCny = rate > 0 ? costLocal / rate : 0;
+          final sellCny = rate > 0 ? sellLocal / rate : 0;
+          final newCostCny = rate > 0 ? newCostLocal / rate : 0;
+          final weighted = (newQty > 0 && newCostCny > 0 && currentStock > 0)
+              ? ((currentStock * costCny + newQty * newCostCny) / (currentStock + newQty))
               : 0.0;
           return AlertDialog(
             title: Text(product.nameCn),
@@ -94,12 +98,12 @@ class _ListingScreenState extends State<ListingScreen> {
                     const Text('进价（成本）', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                     const SizedBox(height: 8),
                     TextFormField(
-                      controller: costCnyController,
+                      controller: costLocalController,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: const InputDecoration(
-                        labelText: '进价 (¥ 人民币)',
-                        prefixText: '¥ ',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: '进价 ($symbol 当地货币)',
+                        prefixText: '$symbol ',
+                        border: const OutlineInputBorder(),
                       ),
                       onChanged: (_) => setDialogState(() {}),
                       validator: (v) {
@@ -109,11 +113,11 @@ class _ListingScreenState extends State<ListingScreen> {
                         return null;
                       },
                     ),
-                    if (costCny > 0)
+                    if (costLocal > 0)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
-                        child: Text('≈ ${_cnyToLocal(costCny)}',
-                          style: TextStyle(fontSize: 13, color: Colors.green.shade700)),
+                        child: Text('≈ ¥${costCny.toStringAsFixed(2)}',
+                          style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
                       ),
                     // 新进货加权区
                     if (currentStock > 0) ...[
@@ -132,10 +136,10 @@ class _ListingScreenState extends State<ListingScreen> {
                         ),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: TextField(
-                            controller: newCostController,
+                          child:                           TextField(
+                            controller: newCostLocalController,
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            decoration: const InputDecoration(labelText: '进价 (¥)', prefixText: '¥ ', border: OutlineInputBorder()),
+                            decoration: InputDecoration(labelText: '进价 ($symbol)', prefixText: '$symbol ', border: const OutlineInputBorder()),
                             onChanged: (_) => setDialogState(() {}),
                           ),
                         ),
@@ -160,12 +164,12 @@ class _ListingScreenState extends State<ListingScreen> {
                     const Text('售价', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                     const SizedBox(height: 8),
                     TextFormField(
-                      controller: sellCnyController,
+                      controller: sellLocalController,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: const InputDecoration(
-                        labelText: '售价 (¥ 人民币)',
-                        prefixText: '¥ ',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: '售价 ($symbol 当地货币)',
+                        prefixText: '$symbol ',
+                        border: const OutlineInputBorder(),
                       ),
                       onChanged: (_) => setDialogState(() {}),
                       validator: (v) {
@@ -175,11 +179,11 @@ class _ListingScreenState extends State<ListingScreen> {
                         return null;
                       },
                     ),
-                    if (sellCny > 0)
+                    if (sellLocal > 0)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
-                        child: Text('≈ ${_cnyToLocal(sellCny)}',
-                          style: TextStyle(fontSize: 13, color: Colors.green.shade700)),
+                        child: Text('≈ ¥${sellCny.toStringAsFixed(2)}',
+                          style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
                       ),
                   ],
                 ),
@@ -211,10 +215,12 @@ class _ListingScreenState extends State<ListingScreen> {
 
     if (confirmed == 'cancel' || confirmed == null || !mounted) return;
 
-    final costCny = double.parse(costCnyController.text);
-    final sellCny = double.parse(sellCnyController.text);
+    final costLocal = double.tryParse(costLocalController.text) ?? 0;
+    final sellLocal = double.tryParse(sellLocalController.text) ?? 0;
     final rate = _countryConfig.cnyExchangeRate;
-    final sellLocal = sellCny * rate;
+    final sellCny = rate > 0 ? sellLocal / rate : 0;
+    final costCny = rate > 0 ? costLocal / rate : 0;
+    final sellLocal = double.tryParse(sellLocalController.text) ?? 0;
 
     // 如果选了按库存均摊，使用加权均价
     double effectiveCost = costCny;

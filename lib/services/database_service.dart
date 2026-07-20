@@ -1725,6 +1725,7 @@ class DatabaseService {
       FROM stock_records sr
       WHERE sr.type = 'outBound'
         AND sr.outbound_reason = 'sale'
+        AND sr.is_batch_internal = 0
         AND sr.created_at >= ?
         AND sr.created_at <= ?
       GROUP BY date(sr.created_at)
@@ -1746,6 +1747,7 @@ class DatabaseService {
       INNER JOIN products p ON sr.product_id = p.id
       WHERE sr.type = 'outBound'
         AND sr.outbound_reason = 'sale'
+        AND sr.is_batch_internal = 0
         AND sr.created_at >= ?
         AND sr.created_at <= ?
       GROUP BY p.category
@@ -1767,6 +1769,7 @@ class DatabaseService {
       INNER JOIN products p ON sr.product_id = p.id
       WHERE sr.type = 'outBound'
         AND sr.outbound_reason = 'sale'
+        AND sr.is_batch_internal = 0
         AND sr.created_at >= ?
         AND sr.created_at <= ?
       GROUP BY sr.product_id
@@ -1791,6 +1794,7 @@ class DatabaseService {
       FROM stock_records sr
       WHERE sr.type = 'outBound'
         AND sr.outbound_reason = 'sale'
+        AND sr.is_batch_internal = 0
         AND sr.created_at >= ?
       GROUP BY strftime('%Y-%m', sr.created_at)
       ORDER BY month ASC
@@ -1813,6 +1817,7 @@ class DatabaseService {
       FROM stock_records sr
       WHERE sr.type = 'outBound'
         AND sr.outbound_reason = 'sale'
+        AND sr.is_batch_internal = 0
         AND sr.created_at >= ?
       GROUP BY strftime('%Y-W%W', sr.created_at)
       ORDER BY week ASC
