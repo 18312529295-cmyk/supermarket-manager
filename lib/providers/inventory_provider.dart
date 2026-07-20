@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/product.dart';
 import '../models/inventory.dart';
 import '../models/stock_record.dart';
+import '../models/order.dart';
 import '../models/check_task.dart';
 import '../models/shelf.dart';
 import '../services/database_service.dart';
@@ -238,6 +239,44 @@ class InventoryProvider extends ChangeNotifier {
     }
     _isLoading = false;
     notifyListeners();
+  }
+
+  // ==================== ORDERS (v6.33) ====================
+
+  List<Order> _orders = [];
+  List<Order> get orders => _orders;
+
+  List<Map<String, dynamic>> _ordersWithItems = [];
+  List<Map<String, dynamic>> get ordersWithItems => _ordersWithItems;
+
+  /// 创建新订单并返回订单ID
+  Future<int> createOrder(String customerName, String operatorName) async {
+    final order = Order(
+      customerName: customerName,
+      operatorName: operatorName,
+    );
+    final orderId = await _db.insertOrder(order);
+    await loadOrdersWithItems();
+    return orderId;
+  }
+
+  /// 向订单添加商品
+  Future<void> addItemToOrder(StockRecord record, int orderId) async {
+    final recordWithOrderId = record.copyWith(orderId: orderId);
+    await recordStockOut(recordWithOrderId);
+    await _db.updateOrderTotals(orderId);
+    await loadOrdersWithItems();
+  }
+
+  /// 加载所有订单及明细
+  Future<void> loadOrdersWithItems() async {
+    _ordersWithItems = await _db.getOrdersWithItems(limit: 100);
+    notifyListeners();
+  }
+
+  /// 获取指定订单的明细
+  Future<List<StockRecord>> getOrderItems(int orderId) async {
+    return await _db.getStockRecordsByOrderId(orderId);
   }
 
   // ==================== CHECK TASKS ====================

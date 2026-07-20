@@ -7,6 +7,7 @@ import '../models/product.dart';
 import '../models/inventory.dart';
 import '../models/shelf.dart';
 import '../models/stock_record.dart';
+import '../models/order.dart';
 import '../models/check_task.dart';
 import '../models/user.dart';
 import '../utils/password_util.dart';
@@ -29,7 +30,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 16,
+      version: 17,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -124,8 +125,23 @@ class DatabaseService {
         expiry_date TEXT,
         operator_name TEXT NOT NULL,
         note TEXT,
+        order_id INTEGER,         -- ★ v6.33: 所属订单ID
         is_synced INTEGER DEFAULT 0,
         is_batch_internal INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL
+      )
+    ''');
+    
+    // ★ v6.33: Orders table (订单头)
+    await db.execute('''
+      CREATE TABLE orders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        customer_name TEXT NOT NULL,
+        total_amount_cny REAL NOT NULL DEFAULT 0,
+        total_amount_uzs REAL NOT NULL DEFAULT 0,
+        operator_name TEXT NOT NULL,
+        note TEXT,
+        is_synced INTEGER DEFAULT 0,
         created_at TEXT NOT NULL
       )
     ''');
@@ -464,6 +480,26 @@ class DatabaseService {
         await db.execute('ALTER TABLE stock_records ADD COLUMN cost_price_cny REAL DEFAULT 0');
       } catch (e) {}
     }
+    if (oldVersion < 17) {
+      // ★ v6.33: v16 → v17 — Orders表 + order_id字段
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_name TEXT NOT NULL,
+            total_amount_cny REAL NOT NULL DEFAULT 0,
+            total_amount_uzs REAL NOT NULL DEFAULT 0,
+            operator_name TEXT NOT NULL,
+            note TEXT,
+            is_synced INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL
+          )
+        ''');
+      } catch (e) {}
+      try {
+        await db.execute('ALTER TABLE stock_records ADD COLUMN order_id INTEGER');
+      } catch (e) {}
+    }
   }
 
   Future<void> _insertSampleData(Database db) async {
@@ -751,6 +787,75 @@ class DatabaseService {
       orderBy: 'created_at DESC',
     );
     return maps.map((m) => StockRecord.fromMap(m)).toList();
+  }
+
+  // ==================== ORDERS (v6.33) ====================
+
+  /// 插入订单头
+  Future<int> insertOrder(Order order) async {
+    final db = await database;
+    return await db.insert('orders', order.toMap());
+  }
+
+  /// 获取所有订单，按时间倒序
+  Future<List<Order>> getOrders({int? limit}) async {
+    final db = await database;
+    final maps = await db.query(
+      'orders',
+      orderBy: 'created_at DESC',
+      limit: limit,
+    );
+    return maps.map((m) => Order.fromMap(m)).toList();
+  }
+
+  /// 根据ID获取订单
+  Future<Order?> getOrderById(int orderId) async {
+    final db = await database;
+    final maps = await db.query('orders', where: 'id = ?', whereArgs: [orderId]);
+    if (maps.isEmpty) return null;
+    return Order.fromMap(maps.first);
+  }
+
+  /// 获取指定订单的出库记录
+  Future<List<StockRecord>> getStockRecordsByOrderId(int orderId) async {
+    final db = await database;
+    final maps = await db.query(
+      'stock_records',
+      where: 'order_id = ? AND is_batch_internal = 0',
+      whereArgs: [orderId],
+      orderBy: 'created_at ASC',
+    );
+    return maps.map((m) => StockRecord.fromMap(m)).toList();
+  }
+
+  /// 获取所有订单及其商品明细（用于历史查看）
+  Future<List<Map<String, dynamic>>> getOrdersWithItems({int? limit}) async {
+    final orders = await getOrders(limit: limit);
+    final result = <Map<String, dynamic>>[];
+    for (final o in orders) {
+      final items = await getStockRecordsByOrderId(o.id!);
+      result.add({'order': o, 'items': items});
+    }
+    return result;
+  }
+
+  /// 更新订单总额
+  Future<void> updateOrderTotals(int orderId) async {
+    final db = await database;
+    final result = await db.rawQuery('''
+      SELECT COALESCE(SUM(price_cny * quantity), 0) as total_cny,
+             COALESCE(SUM(price_uzs * quantity), 0) as total_uzs
+      FROM stock_records
+      WHERE order_id = ? AND is_batch_internal = 0
+    ''', [orderId]);
+    if (result.isNotEmpty) {
+      final cny = (result.first['total_cny'] as num).toDouble();
+      final uzs = (result.first['total_uzs'] as num).toDouble();
+      await db.update('orders', {
+        'total_amount_cny': cny,
+        'total_amount_uzs': uzs,
+      }, where: 'id = ?', whereArgs: [orderId]);
+    }
   }
 
   Future<List<Map<String, dynamic>>> getUnsyncedRecords() async {

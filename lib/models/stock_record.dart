@@ -38,6 +38,7 @@ class StockRecord {
   final DateTime? expiryDate;
   final String operatorName;
   final String? note;
+  final int? orderId;             // ★ v6.33: 所属订单ID，null=未分组
   final bool isSynced;
   final bool isBatchInternal;
   final DateTime createdAt;
@@ -59,6 +60,7 @@ class StockRecord {
     this.expiryDate,
     required this.operatorName,
     this.note,
+    this.orderId,                 // ★ v6.33
     this.isSynced = false,
     this.isBatchInternal = false,
     DateTime? createdAt,
@@ -82,6 +84,7 @@ class StockRecord {
       'expiry_date': expiryDate?.toIso8601String(),
       'operator_name': operatorName,
       'note': note,
+      'order_id': orderId,          // ★ v6.33
       'is_synced': isSynced ? 1 : 0,
       'is_batch_internal': isBatchInternal ? 1 : 0,
       'created_at': createdAt.toIso8601String(),
@@ -112,6 +115,7 @@ class StockRecord {
           : null,
       operatorName: map['operator_name'] as String,
       note: map['note'] as String?,
+      orderId: map['order_id'] as int?,   // ★ v6.33
       isSynced: map['is_synced'] == 1,
       isBatchInternal: map['is_batch_internal'] == 1,
       createdAt: DateTime.parse(map['created_at'] as String),
@@ -138,6 +142,7 @@ class StockRecord {
     DateTime? expiryDate,
     String? operatorName,
     String? note,
+    int? orderId,                 // ★ v6.33
     bool? isSynced,
     bool? isBatchInternal,
     DateTime? createdAt,
@@ -159,6 +164,7 @@ class StockRecord {
       expiryDate: expiryDate ?? this.expiryDate,
       operatorName: operatorName ?? this.operatorName,
       note: note ?? this.note,
+      orderId: orderId ?? this.orderId,     // ★ v6.33
       isSynced: isSynced ?? this.isSynced,
       isBatchInternal: isBatchInternal ?? this.isBatchInternal,
       createdAt: createdAt ?? this.createdAt,
