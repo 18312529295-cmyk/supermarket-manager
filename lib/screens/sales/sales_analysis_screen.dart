@@ -158,7 +158,8 @@ class _SalesTrendTabState extends State<_SalesTrendTab>
           _totalSalesUzs = data.fold<double>(0, (s, item) => s + ((item['total_amount_uzs'] as num?)?.toDouble() ?? 0));
           _totalQuantity = qty;
           _totalProfit = profit;
-          _totalProfitUzs = data.fold<double>(0, (s, item) => s + ((item['profit_cny'] as num?)?.toDouble() ?? 0) * exchangeRate);
+          final rate = countryConfig.cnyExchangeRate;
+          _totalProfitUzs = data.fold<double>(0, (s, item) => s + ((item['profit_cny'] as num?)?.toDouble() ?? 0) * rate);
           _avgDailySales = data.isNotEmpty ? total / data.length : 0;
           _avgDailySalesUzs = data.isNotEmpty ? _totalSalesUzs / data.length : 0;
           _isLoading = false;

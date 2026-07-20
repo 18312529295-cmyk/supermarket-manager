@@ -218,9 +218,8 @@ class _ListingScreenState extends State<ListingScreen> {
     final costLocal = double.tryParse(costLocalController.text) ?? 0;
     final sellLocal = double.tryParse(sellLocalController.text) ?? 0;
     final rate = _countryConfig.cnyExchangeRate;
-    final sellCny = rate > 0 ? sellLocal / rate : 0;
-    final costCny = rate > 0 ? costLocal / rate : 0;
-    final sellLocal = double.tryParse(sellLocalController.text) ?? 0;
+    final sellCny = (rate > 0 ? sellLocal / rate : 0).toDouble();
+    final costCny = (rate > 0 ? costLocal / rate : 0).toDouble();
 
     // 如果选了按库存均摊，使用加权均价
     double effectiveCost = costCny;
@@ -233,10 +232,10 @@ class _ListingScreenState extends State<ListingScreen> {
     }
 
     final provider = context.read<InventoryProvider>();
-    await provider.updateProductPrices(product.id!, sellCny.toDouble(), sellLocal, costPriceCny: effectiveCost);
+    await provider.updateProductPrices(product.id!, sellCny, sellLocal, costPriceCny: effectiveCost);
     // 同步价格 + 分类到云端
     SupabaseSyncService().syncProductPrice(product.barcode, effectiveCost, sellLocal,
-        sellPriceCny: sellCny.toDouble(), categoryName: product.category).catchError((_) {});
+        sellPriceCny: sellCny, categoryName: product.category).catchError((_) {});
     _refresh();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
