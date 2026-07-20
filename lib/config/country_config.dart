@@ -41,6 +41,11 @@ class CountryConfig {
     CountryConfig(code: 'TR', nameCn: '土耳其', nameLocal: 'Türkiye', region: '欧亚', langCode: 'tr', langName: 'Türkçe', currencyCode: 'TRY', currencySymbol: '₺', timezone: 'UTC+3', timezoneDesc: '伊斯坦布尔时间', cnyExchangeRate: 5.0),
     // 欧洲
     CountryConfig(code: 'RU', nameCn: '俄罗斯', nameLocal: 'Россия', region: '欧洲', langCode: 'ru', langName: 'Русский', currencyCode: 'RUB', currencySymbol: '₽', timezone: 'UTC+3', timezoneDesc: '莫斯科时间', cnyExchangeRate: 12.5),
+    // 外高加索
+    CountryConfig(code: 'AM', nameCn: '亚美尼亚', nameLocal: 'Հայաստան', region: '外高加索', langCode: 'ru', langName: 'Հայերեն', currencyCode: 'AMD', currencySymbol: '֏', timezone: 'UTC+4', timezoneDesc: '埃里温时间', cnyExchangeRate: 55.0),
+    CountryConfig(code: 'GE', nameCn: '格鲁吉亚', nameLocal: 'საქართველო', region: '外高加索', langCode: 'ru', langName: 'ქართული', currencyCode: 'GEL', currencySymbol: '₾', timezone: 'UTC+4', timezoneDesc: '第比利斯时间', cnyExchangeRate: 0.38),
+    // 东欧
+    CountryConfig(code: 'BY', nameCn: '白俄罗斯', nameLocal: 'Беларусь', region: '东欧', langCode: 'ru', langName: 'Беларуская', currencyCode: 'BYN', currencySymbol: 'Br', timezone: 'UTC+3', timezoneDesc: '明斯克时间', cnyExchangeRate: 0.33),
   ];
 
   static CountryConfig get defaultConfig => all[0]; // 中国
